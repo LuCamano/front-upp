@@ -1,28 +1,46 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
-import type { Estudiante, Carrera, Comuna, Tutor, Ficha, Establecimiento, NivelPractica, Cupo } from "@/lib/definitions";
+import type {
+  Estudiante,
+  Carrera,
+  Comuna,
+  Tutor,
+  Ficha,
+  Establecimiento,
+  NivelPractica,
+  Cupo,
+} from "@/lib/definitions";
 import * as api from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { StudentForm, type StudentFormValues } from "@/components/alumnos/student-form";
+import {
+  StudentForm,
+  type StudentFormValues,
+} from "@/components/alumnos/student-form";
 import { StudentTable } from "@/components/alumnos/student-table";
 import { StudentDetails } from "@/components/alumnos/student-details";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, Users } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 
 export default function AlumnosPage() {
   const { toast } = useToast();
   const [estudiantes, setEstudiantes] = useState<Estudiante[]>([]);
   const [filteredEstudiantes, setFilteredEstudiantes] = useState<Estudiante[]>([]);
-  
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingEstudiante, setEditingEstudiante] = useState<Estudiante | null>(null);
-  
+
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedStudentForDetails, setSelectedStudentForDetails] = useState<Estudiante | null>(null);
+  const [selectedStudentForDetails, setSelectedStudentForDetails] =
+    useState<Estudiante | null>(null);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -36,19 +54,18 @@ export default function AlumnosPage() {
   const [nivelesPractica, setNivelesPractica] = useState<NivelPractica[]>([]);
   const [cupos, setCupos] = useState<Cupo[]>([]);
 
-
   const fetchAllData = async () => {
     setIsLoading(true);
     try {
       const [
-        estudiantesData, 
-        carrerasData, 
-        comunasData, 
+        estudiantesData,
+        carrerasData,
+        comunasData,
         tutoresData,
         fichasData,
         establecimientosData,
         nivelesData,
-        cuposData
+        cuposData,
       ] = await Promise.all([
         api.getEstudiantes(),
         api.getCarreras(),
@@ -57,7 +74,7 @@ export default function AlumnosPage() {
         api.getFichas(),
         api.getEstablecimientos(),
         api.getNivelesPractica(),
-        api.getCupos()
+        api.getCupos(),
       ]);
       setEstudiantes(estudiantesData);
       setFilteredEstudiantes(estudiantesData);
@@ -71,7 +88,8 @@ export default function AlumnosPage() {
     } catch (error) {
       toast({
         title: "Error al cargar datos",
-        description: "No se pudieron obtener los datos del servidor. Inténtalo de nuevo más tarde.",
+        description:
+          "No se pudieron obtener los datos del servidor. Inténtalo de nuevo más tarde.",
         variant: "destructive",
       });
     } finally {
@@ -81,18 +99,28 @@ export default function AlumnosPage() {
 
   useEffect(() => {
     fetchAllData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  
+
   useEffect(() => {
-    const results = estudiantes.filter(estudiante =>
-      estudiante.rut.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${estudiante.nombre} ${estudiante.ap_paterno} ${estudiante.ap_materno}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      estudiante.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (carreras.find(c => c.id === estudiante.carrera_id)?.nombre || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const results = estudiantes.filter((estudiante) => {
+      const carreraNombre =
+        carreras.find((c) => c.id === estudiante.carrera_id)?.nombre || "";
+
+      const fullName = `${estudiante.nombre} ${estudiante.ap_paterno} ${estudiante.ap_materno}`;
+
+      const term = searchTerm.toLowerCase();
+
+      return (
+        estudiante.rut.toLowerCase().includes(term) ||
+        fullName.toLowerCase().includes(term) ||
+        estudiante.email.toLowerCase().includes(term) ||
+        carreraNombre.toLowerCase().includes(term)
+      );
+    });
+
     setFilteredEstudiantes(results);
   }, [searchTerm, estudiantes, carreras]);
-
 
   const handleAddEstudiante = () => {
     setEditingEstudiante(null);
@@ -114,7 +142,7 @@ export default function AlumnosPage() {
       await api.deleteEstudiante(estudianteId);
       await fetchAllData(); // Re-fetch to update the list
       toast({
-        title: "Estudiante Eliminado",
+        title: "Estudiante eliminado",
         description: "El estudiante ha sido eliminado exitosamente.",
       });
     } catch (error) {
@@ -128,70 +156,124 @@ export default function AlumnosPage() {
 
   const handleSubmitForm = async (data: StudentFormValues) => {
     const payload = {
-        ...data,
-        carrera_id: Number(data.carrera_id),
-        comuna_id: Number(data.comuna_id),
-        tutor_id: data.tutor_id ? Number(data.tutor_id) : null,
-        cond_especial: data.cond_especial || null,
+      ...data,
+      carrera_id: Number(data.carrera_id),
+      comuna_id: Number(data.comuna_id),
+      tutor_id: data.tutor_id ? Number(data.tutor_id) : null,
+      cond_especial: data.cond_especial || null,
     };
-    
+
     try {
-        if (editingEstudiante) {
-            await api.updateEstudiante(editingEstudiante.id, payload);
-            toast({
-                title: "Estudiante Actualizado",
-                description: `El estudiante "${data.nombre}" ha sido actualizado.`,
-            });
-        } else {
-            await api.createEstudiante(payload);
-            toast({
-                title: "Estudiante Creado",
-                description: `El estudiante "${data.nombre}" ha sido registrado.`,
-            });
-        }
-        setIsFormOpen(false);
-        setEditingEstudiante(null);
-        await fetchAllData(); // Re-fetch to update the list
-    } catch (error) {
+      if (editingEstudiante) {
+        await api.updateEstudiante(editingEstudiante.id, payload);
         toast({
-            title: `Error al ${editingEstudiante ? 'actualizar' : 'crear'}`,
-            description: `No se pudo guardar el estudiante.`,
-            variant: "destructive",
+          title: "Estudiante actualizado",
+          description: `El estudiante "${data.nombre}" ha sido actualizado.`,
         });
+      } else {
+        await api.createEstudiante(payload);
+        toast({
+          title: "Estudiante creado",
+          description: `El estudiante "${data.nombre}" ha sido registrado.`,
+        });
+      }
+      setIsFormOpen(false);
+      setEditingEstudiante(null);
+      await fetchAllData(); // Re-fetch to update the list
+    } catch (error) {
+      toast({
+        title: `Error al ${editingEstudiante ? "actualizar" : "crear"}`,
+        description: "No se pudo guardar el estudiante.",
+        variant: "destructive",
+      });
     }
   };
 
+  const totalEstudiantes = estudiantes.length;
+  const totalFiltrados = filteredEstudiantes.length;
+
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+      {/* Header principal */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
           <h1 className="text-3xl font-bold font-headline">Gestión de Estudiantes</h1>
-          <p className="text-muted-foreground">Administra la información de los estudiantes.</p>
+          <p className="text-sm text-muted-foreground">
+            Administra la información de los estudiantes de forma centralizada.
+          </p>
+          <div className="mt-2 inline-flex items-center gap-2 rounded-full border bg-muted/60 px-3 py-1 text-xs text-muted-foreground">
+            <Users className="h-3.5 w-3.5" />
+            <span>
+              {totalEstudiantes} estudiante
+              {totalEstudiantes === 1 ? "" : "s"} registrados
+            </span>
+            {searchTerm && (
+              <>
+                <span className="h-3 w-px bg-border" />
+                <span>
+                  {totalFiltrados} resultado
+                  {totalFiltrados === 1 ? "" : "s"} para “{searchTerm}”
+                </span>
+              </>
+            )}
+          </div>
         </div>
+
         <Button onClick={handleAddEstudiante} className="w-full sm:w-auto">
           <PlusCircle className="mr-2 h-4 w-4" />
-          Agregar Estudiante
+          Agregar estudiante
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Listado de Estudiantes</CardTitle>
-          <CardDescription>Busca, visualiza y gestiona los estudiantes registrados en el sistema.</CardDescription>
-          <div className="relative mt-2">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar por nombre, RUT, email o carrera..."
-              className="pl-8 w-full sm:w-[300px]"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+      {/* Card de listado + búsqueda */}
+      <Card className="border shadow-sm">
+        <CardHeader className="space-y-4">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle className="text-lg">Listado de estudiantes</CardTitle>
+              <CardDescription className="mt-1">
+                Busca, visualiza y gestiona los estudiantes registrados en el sistema.
+              </CardDescription>
+            </div>
+
+            {/* Buscador */}
+            <div className="w-full md:w-80">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Buscar por nombre, RUT, email o carrera..."
+                  className="pl-8 text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Puedes combinar criterios, por ejemplo: “Juan Pedagogía Básica”.
+              </p>
+            </div>
           </div>
         </CardHeader>
+
         <CardContent>
           {isLoading ? (
-            <p>Cargando estudiantes...</p> 
+            // Skeleton simple en vez de texto plano
+            <div className="space-y-3">
+              <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+              <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+            </div>
+          ) : filteredEstudiantes.length === 0 ? (
+            <div className="flex min-h-[160px] flex-col items-center justify-center gap-2 rounded-md border border-dashed bg-muted/40 p-6 text-center text-sm text-muted-foreground">
+              <p className="font-medium text-foreground">
+                {searchTerm ? "No se encontraron estudiantes." : "Aún no hay estudiantes registrados."}
+              </p>
+              <p>
+                {searchTerm
+                  ? "Prueba ajustando tu búsqueda o eliminando filtros."
+                  : "Comienza agregando un nuevo estudiante desde el botón superior."}
+              </p>
+            </div>
           ) : (
             <StudentTable
               estudiantes={filteredEstudiantes}
@@ -204,6 +286,7 @@ export default function AlumnosPage() {
         </CardContent>
       </Card>
 
+      {/* Modal de formulario */}
       <StudentForm
         isOpen={isFormOpen}
         onOpenChange={setIsFormOpen}
@@ -214,6 +297,7 @@ export default function AlumnosPage() {
         tutores={tutores}
       />
 
+      {/* Modal de detalles */}
       <StudentDetails
         isOpen={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}
@@ -229,5 +313,3 @@ export default function AlumnosPage() {
     </div>
   );
 }
-
-    
