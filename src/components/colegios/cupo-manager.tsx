@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -7,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import type { Establecimiento, Cupo, NivelPractica, Carrera, Ficha } from "@/lib/definitions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -55,6 +55,7 @@ import { Trash2 } from "lucide-react";
 
 const cupoSchema = z.object({
   nivel_practica_id: z.string().min(1, "Debe seleccionar un nivel de práctica."),
+  cantidad: z.coerce.number().min(1, "Mínimo 1").max(50, "Máximo 50"),
 });
 
 type CupoFormValues = z.infer<typeof cupoSchema>;
@@ -90,7 +91,7 @@ export function CupoManager({
   
   const form = useForm<CupoFormValues>({
     resolver: zodResolver(cupoSchema),
-    defaultValues: { nivel_practica_id: "" },
+    defaultValues: { nivel_practica_id: "", cantidad: 1 },
   });
   
   const getCarreraName = (carreraId: number) => carreras.find(c => c.id === carreraId)?.nombre || 'Carrera Desconocida';
@@ -110,7 +111,7 @@ export function CupoManager({
 
   const handleFormSubmit = async (data: CupoFormValues) => {
     await onAddCupo(data);
-    form.reset();
+    form.reset({ nivel_practica_id: "", cantidad: 1 });
   };
 
   const handleDeleteAttempt = async (cupo: Cupo) => {
@@ -145,7 +146,7 @@ export function CupoManager({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg bg-card">
+      <DialogContent className="sm:max-w-xl bg-card">
         <DialogHeader>
           <DialogTitle>Gestionar Cupos de Práctica</DialogTitle>
           <DialogDescription>
@@ -156,17 +157,17 @@ export function CupoManager({
 
         <div className="space-y-4">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex items-start gap-2">
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-start">
               <FormField
                 control={form.control}
                 name="nivel_practica_id"
                 render={({ field }) => (
-                  <FormItem className="flex-grow">
+                  <FormItem className="flex-[2]">
                     <FormLabel className="sr-only">Nivel de Práctica</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Seleccione un nivel de práctica..." />
+                          <SelectValue placeholder="Seleccione nivel..." />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
@@ -181,15 +182,39 @@ export function CupoManager({
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Agregando..." : "Agregar Cupo"}
+              
+              <FormField
+                control={form.control}
+                name="cantidad"
+                render={({ field }) => (
+                  <FormItem className="flex-1">
+                    <FormLabel className="sr-only">Cantidad</FormLabel>
+                    <FormControl>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">Cant.</span>
+                        <Input 
+                          type="number" 
+                          min={1} 
+                          max={50} 
+                          {...field} 
+                          title="Cantidad de cupos a crear"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <Button type="submit" disabled={form.formState.isSubmitting} className="sm:w-auto">
+                {form.formState.isSubmitting ? "Agregando..." : "Agregar"}
               </Button>
             </form>
           </Form>
 
           <div className="rounded-md border max-h-60 overflow-y-auto">
             <Table>
-              <TableHeader>
+              <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
                   <TableHead>Nivel de Práctica</TableHead>
                   <TableHead>Carrera</TableHead>

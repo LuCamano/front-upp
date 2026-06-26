@@ -157,24 +157,36 @@ export default function ColegiosPage() {
     setManagingFor(establecimiento);
     setIsCupoManagerOpen(true);
   };
-  const handleAddCupo = async (data: { nivel_practica_id: string }) => {
+
+  const handleAddCupo = async (data: { nivel_practica_id: string; cantidad: number }) => {
     if (!managingFor) return;
+    
+    const count = data.cantidad || 1;
     const payload = {
       establecimiento_id: managingFor.id,
       nivel_practica_id: Number(data.nivel_practica_id),
     };
+
     try {
-      await api.createCupo(payload);
-      toast({ title: "Cupo agregado" });
+      // Realizamos las creaciones en paralelo
+      const promises = Array.from({ length: count }).map(() => api.createCupo(payload));
+      await Promise.all(promises);
+      
+      toast({ 
+        title: count > 1 ? "Cupos agregados" : "Cupo agregado",
+        description: `Se han creado ${count} cupos para este establecimiento.`
+      });
+      
       await fetchAllData();
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo agregar el cupo.",
+        description: "No se pudieron agregar los cupos.",
         variant: "destructive",
       });
     }
   };
+
   const handleDeleteCupo = async (cupoId: number) => {
     try {
       await api.deleteCupo(cupoId);
