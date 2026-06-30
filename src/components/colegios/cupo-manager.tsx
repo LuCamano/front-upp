@@ -172,7 +172,7 @@ export function CupoManager({
                 control={form.control}
                 name="nivel_practica_id"
                 render={({ field }) => (
-                  <FormItem className="flex-[3]">
+                  <FormItem className="flex-[3] min-w-0">
                     <FormLabel className="sr-only">Nivel de Práctica</FormLabel>
                     <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
                       <PopoverTrigger asChild>
@@ -185,13 +185,15 @@ export function CupoManager({
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            {field.value
-                              ? (() => {
-                                  const info = getNivelInfo(Number(field.value));
-                                  return `${info.nombre} (${info.carreraNombre})`;
-                                })()
-                              : "Buscar nivel o carrera..."}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            <span className="truncate mr-2 text-left">
+                              {field.value
+                                ? (() => {
+                                    const info = getNivelInfo(Number(field.value));
+                                    return `${info.nombre} (${info.carreraNombre})`;
+                                  })()
+                                : "Buscar nivel o carrera..."}
+                            </span>
+                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
@@ -212,15 +214,15 @@ export function CupoManager({
                                 >
                                   <Check
                                     className={cn(
-                                      "mr-2 h-4 w-4",
+                                      "mr-2 h-4 w-4 shrink-0",
                                       field.value === String(nivel.id)
                                         ? "opacity-100"
                                         : "opacity-0"
                                     )}
                                   />
-                                  <div className="flex flex-col">
-                                    <span className="text-sm font-medium">{nivel.nombre}</span>
-                                    <span className="text-xs text-muted-foreground">{nivel.carreraNombre}</span>
+                                  <div className="flex flex-col min-w-0 overflow-hidden">
+                                    <span className="text-sm font-medium truncate">{nivel.nombre}</span>
+                                    <span className="text-xs text-muted-foreground truncate">{nivel.carreraNombre}</span>
                                   </div>
                                 </CommandItem>
                               ))}
@@ -257,7 +259,7 @@ export function CupoManager({
                 )}
               />
 
-              <Button type="submit" disabled={form.formState.isSubmitting} className="sm:w-auto">
+              <Button type="submit" disabled={form.formState.isSubmitting} className="sm:w-auto shrink-0">
                 {form.formState.isSubmitting ? "Agregando..." : "Agregar"}
               </Button>
             </form>
@@ -284,8 +286,8 @@ export function CupoManager({
                     const { nombre, carreraNombre } = getNivelInfo(cupo.nivel_practica_id);
                     return (
                         <TableRow key={cupo.id}>
-                            <TableCell>{nombre}</TableCell>
-                            <TableCell>{carreraNombre}</TableCell>
+                            <TableCell className="max-w-[150px] truncate" title={nombre}>{nombre}</TableCell>
+                            <TableCell className="max-w-[150px] truncate" title={carreraNombre}>{carreraNombre}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="destructive" size="icon" onClick={() => handleDeleteAttempt(cupo)}>
                                   <Trash2 className="h-4 w-4" />
