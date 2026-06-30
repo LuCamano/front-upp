@@ -108,7 +108,6 @@ export function CupoManager({
     return nivelesPractica.map(nivel => ({
       ...nivel,
       carreraNombre: getCarreraName(nivel.carrera_id),
-      // Search search string combining both
       searchLabel: `${nivel.nombre} ${getCarreraName(nivel.carrera_id)}`.toLowerCase(),
     }));
   }, [nivelesPractica, carreras]);
@@ -129,12 +128,10 @@ export function CupoManager({
     try {
         await onDeleteCupo(cupo.id);
     } catch (error) {
-        // Error is expected if cupo is in use, now check for associated ficha
         const associatedFicha = fichas.find(f => f.cupo_id === cupo.id);
         if (associatedFicha) {
             setShowCascadeDeleteAlert(true);
         } else {
-            // If error is for another reason, show a generic toast.
             toast({
               title: "Error al eliminar",
               description: "No se pudo eliminar el cupo. Contacte al administrador si el problema persiste.",
@@ -156,18 +153,18 @@ export function CupoManager({
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl bg-card">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl max-w-[95vw] bg-card overflow-hidden flex flex-col max-h-[90vh]">
+        <DialogHeader className="shrink-0">
           <DialogTitle>Gestionar Cupos de Práctica</DialogTitle>
-          <DialogDescription>
-            Añade o elimina cupos de práctica para el establecimiento{" "}
+          <DialogDescription className="truncate">
+            Añade o elimina cupos para el establecimiento{" "}
             <span className="font-semibold">{establecimiento.nombre}</span>.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="flex-1 overflow-hidden space-y-4 py-2">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-start">
+            <form onSubmit={form.handleSubmit(handleFormSubmit)} className="flex flex-col gap-3 sm:flex-row sm:items-start min-w-0">
               <FormField
                 control={form.control}
                 name="nivel_practica_id"
@@ -181,11 +178,11 @@ export function CupoManager({
                             variant="outline"
                             role="combobox"
                             className={cn(
-                              "w-full justify-between font-normal",
+                              "w-full justify-between font-normal min-w-0 overflow-hidden",
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            <span className="truncate mr-2 text-left">
+                            <span className="truncate text-left flex-1 min-w-0">
                               {field.value
                                 ? (() => {
                                     const info = getNivelInfo(Number(field.value));
@@ -193,7 +190,7 @@ export function CupoManager({
                                   })()
                                 : "Buscar nivel o carrera..."}
                             </span>
-                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50 ml-2" />
                           </Button>
                         </FormControl>
                       </PopoverTrigger>
@@ -240,7 +237,7 @@ export function CupoManager({
                 control={form.control}
                 name="cantidad"
                 render={({ field }) => (
-                  <FormItem className="flex-1">
+                  <FormItem className="sm:w-24 shrink-0">
                     <FormLabel className="sr-only">Cantidad</FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
@@ -250,7 +247,6 @@ export function CupoManager({
                           min={1} 
                           max={50} 
                           {...field} 
-                          title="Cantidad de cupos a crear"
                         />
                       </div>
                     </FormControl>
@@ -265,13 +261,13 @@ export function CupoManager({
             </form>
           </Form>
 
-          <div className="rounded-md border max-h-60 overflow-y-auto">
+          <div className="rounded-md border h-[300px] overflow-auto">
             <Table>
               <TableHeader className="sticky top-0 bg-background z-10">
                 <TableRow>
-                  <TableHead>Nivel de Práctica</TableHead>
-                  <TableHead>Carrera</TableHead>
-                  <TableHead className="text-right">Acción</TableHead>
+                  <TableHead className="w-[40%]">Nivel</TableHead>
+                  <TableHead className="w-[45%]">Carrera</TableHead>
+                  <TableHead className="w-[15%] text-right">Acción</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -286,8 +282,12 @@ export function CupoManager({
                     const { nombre, carreraNombre } = getNivelInfo(cupo.nivel_practica_id);
                     return (
                         <TableRow key={cupo.id}>
-                            <TableCell className="max-w-[150px] truncate" title={nombre}>{nombre}</TableCell>
-                            <TableCell className="max-w-[150px] truncate" title={carreraNombre}>{carreraNombre}</TableCell>
+                            <TableCell className="max-w-0">
+                                <div className="truncate" title={nombre}>{nombre}</div>
+                            </TableCell>
+                            <TableCell className="max-w-0">
+                                <div className="truncate" title={carreraNombre}>{carreraNombre}</div>
+                            </TableCell>
                             <TableCell className="text-right">
                               <Button variant="destructive" size="icon" onClick={() => handleDeleteAttempt(cupo)}>
                                   <Trash2 className="h-4 w-4" />
@@ -302,7 +302,7 @@ export function CupoManager({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="shrink-0 pt-2">
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Cerrar
