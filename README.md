@@ -11,8 +11,8 @@ Bienvenido a la Plataforma de Gestión de Prácticas Pedagógicas. Este sistema 
    - [Tutores](#tutores)
    - [Carreras](#carreras)
    - [Comunas](#comunas)
-2. [Proceso de Adscripción](#proceso-de-adscripción)
-   - [Paso 1: Selección y Adscripción](#paso-1-selección-y-adscripción)
+2. [Proceso de Asignación](#proceso-de-asignación)
+   - [Paso 1: Selección y Asignación](#paso-1-selección-y-asignación)
    - [Paso 2: Notificación al Establecimiento](#paso-2-notificación-al-establecimiento)
    - [Paso 3: Notificación a Estudiantes](#paso-3-notificación-a-estudiantes)
 3. [Herramientas Adicionales](#herramientas-adicionales)
@@ -34,13 +34,13 @@ En esta sección puedes gestionar la información de todos los estudiantes.
 - **Editar**: En la tabla, usa el icono de lápiz (✏️) para modificar los datos de un estudiante existente.
 - **Eliminar**: Usa el icono de papelera (🗑️) para eliminar a un estudiante. Esta acción es irreversible.
 - **Ver Detalles**: Usa el icono del ojo (👁️) para ver una ficha completa del estudiante, incluyendo su historial de prácticas.
-- **Buscar**: Utiliza la barra de búsqueda para filtrar estudiantes por nombre, email o carrera.
+- **Buscar**: Utiliza la barra de búsqueda para filtrar estudiantes por nombre, RUT, email o carrera.
 
 ### Colegios
 Aquí se administran los establecimientos educativos donde los alumnos realizan sus prácticas.
 - **Agregar/Editar/Eliminar**: Funcionamiento similar a la sección de Alumnos.
 - **Gestionar Directivos**: Usa el icono de contacto (👤) para añadir, editar o eliminar directivos (contactos) asociados a un colegio.
-- **Gestionar Cupos**: Usa el icono de engranaje (⚙️) para asignar los niveles de práctica que un colegio ofrece. Esto es crucial para el proceso de adscripción.
+- **Gestionar Cupos**: Usa el icono de engranaje (⚙️) para asignar los niveles de práctica que un colegio ofrece. Esto es crucial para el proceso de asignación.
 
 ### Tutores
 Administra a los tutores académicos de la universidad que supervisan a los estudiantes.
@@ -56,11 +56,11 @@ Permite administrar el listado de comunas. Esta información se utiliza en los f
 
 ---
 
-## Proceso de Adscripción
+## Proceso de Asignación
 
 Esta es la sección principal para asignar estudiantes a sus lugares de práctica. Se divide en tres pasos guiados.
 
-### Paso 1: Selección y Adscripción
+### Paso 1: Selección y Asignación
 Aquí se prepara todo lo necesario para la asignación.
 1.  **Seleccionar Establecimiento**: Elige el colegio donde se asignarán las prácticas.
 2.  **Definir Fechas**:
