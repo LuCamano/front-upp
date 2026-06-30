@@ -25,13 +25,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Table,
   TableBody,
   TableCell,
@@ -50,8 +43,22 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { Trash2 } from "lucide-react";
+import { Trash2, Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const cupoSchema = z.object({
   nivel_practica_id: z.string().min(1, "Debe seleccionar un nivel de práctica."),
@@ -88,6 +95,7 @@ export function CupoManager({
   const { toast } = useToast();
   const [cupoToDelete, setCupoToDelete] = React.useState<Cupo | null>(null);
   const [showCascadeDeleteAlert, setShowCascadeDeleteAlert] = React.useState(false);
+  const [comboboxOpen, setComboboxOpen] = React.useState(false);
   
   const form = useForm<CupoFormValues>({
     resolver: zodResolver(cupoSchema),
@@ -100,6 +108,8 @@ export function CupoManager({
     return nivelesPractica.map(nivel => ({
       ...nivel,
       carreraNombre: getCarreraName(nivel.carrera_id),
+      // Search search string combining both
+      searchLabel: `${nivel.nombre} ${getCarreraName(nivel.carrera_id)}`.toLowerCase(),
     }));
   }, [nivelesPractica, carreras]);
 
@@ -162,22 +172,63 @@ export function CupoManager({
                 control={form.control}
                 name="nivel_practica_id"
                 render={({ field }) => (
-                  <FormItem className="flex-[2]">
+                  <FormItem className="flex-[3]">
                     <FormLabel className="sr-only">Nivel de Práctica</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Seleccione nivel..." />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {nivelPracticaOptions.map((nivel) => (
-                          <SelectItem key={nivel.id} value={String(nivel.id)}>
-                            {nivel.nombre} ({nivel.carreraNombre})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <Popover open={comboboxOpen} onOpenChange={setComboboxOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className={cn(
+                              "w-full justify-between font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value
+                              ? (() => {
+                                  const info = getNivelInfo(Number(field.value));
+                                  return `${info.nombre} (${info.carreraNombre})`;
+                                })()
+                              : "Buscar nivel o carrera..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                        <Command>
+                          <CommandInput placeholder="Ej: Básica o Profesional..." />
+                          <CommandEmpty>No se encontraron resultados.</CommandEmpty>
+                          <CommandGroup>
+                            <CommandList>
+                              {nivelPracticaOptions.map((nivel) => (
+                                <CommandItem
+                                  key={nivel.id}
+                                  value={nivel.searchLabel}
+                                  onSelect={() => {
+                                    form.setValue("nivel_practica_id", String(nivel.id));
+                                    setComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      field.value === String(nivel.id)
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  <div className="flex flex-col">
+                                    <span className="text-sm font-medium">{nivel.nombre}</span>
+                                    <span className="text-xs text-muted-foreground">{nivel.carreraNombre}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandList>
+                          </CommandGroup>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                     <FormMessage />
                   </FormItem>
                 )}
