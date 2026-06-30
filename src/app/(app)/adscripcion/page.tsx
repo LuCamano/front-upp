@@ -53,6 +53,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const ADSCRIPCION_STEPS = {
   STEP1: "seleccion-estudiantes",
@@ -99,7 +100,9 @@ export default function AdscripcionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreatingFichas, setIsCreatingFichas] = useState(false);
 
-  // Step 2
+  // Step 2 Selection
+  const [selectedRecipientIds, setSelectedRecipientIds] = useState<number[]>([]);
+  const [mainDirectivoId, setMainDirectivoId] = useState<number | null>(null);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
 
@@ -126,10 +129,14 @@ export default function AdscripcionPage() {
     [selectedEstablecimientoId, allEstablecimientos]
   );
 
-  const selectedDirectivo = useMemo(() => {
-    if (!selectedEstablecimiento) return null;
-    return allDirectivos.find((d) => d.establecimiento_id === selectedEstablecimiento.id) || null;
-  }, [selectedEstablecimiento, allDirectivos]);
+  const establishmentDirectivos = useMemo(() => {
+    if (!selectedEstablecimientoId) return [];
+    return allDirectivos.filter((d) => d.establecimiento_id === selectedEstablecimientoId);
+  }, [selectedEstablecimientoId, allDirectivos]);
+
+  const mainDirectivo = useMemo(() => {
+    return establishmentDirectivos.find((d) => d.id === mainDirectivoId) || null;
+  }, [establishmentDirectivos, mainDirectivoId]);
 
   const getCarreraName = (carreraId: number) =>
     allCarreras.find((c) => c.id === carreraId)?.nombre || "N/A";
@@ -189,6 +196,16 @@ export default function AdscripcionPage() {
     fetchInitialData();
   }, [toast]);
 
+  // Default selection when entering Step 2
+  useEffect(() => {
+    if (currentStep === ADSCRIPCION_STEPS.STEP2 && establishmentDirectivos.length > 0) {
+      setSelectedRecipientIds(establishmentDirectivos.map((d) => d.id));
+      if (mainDirectivoId === null) {
+        setMainDirectivoId(establishmentDirectivos[0].id);
+      }
+    }
+  }, [currentStep, establishmentDirectivos, mainDirectivoId]);
+
   useEffect(() => {
     if (currentStep === ADSCRIPCION_STEPS.STEP3 && createdFichas.length > 0) {
       const grouped: Record<string, { nivel: NivelPractica; students: Estudiante[] }> = {};
@@ -213,7 +230,7 @@ export default function AdscripcionPage() {
   }, [currentStep, createdFichas, allStudents, allCupos, allNivelesPractica]);
 
   useEffect(() => {
-    if (!previewStudent || !studentTemplate || !selectedEstablecimiento || !selectedDirectivo) {
+    if (!previewStudent || !studentTemplate || !selectedEstablecimiento || !mainDirectivo) {
       setRenderedStudentEmail(
         "<p class='text-muted-foreground p-4 text-center'>Seleccione un estudiante para previsualizar el correo.</p>"
       );
@@ -236,7 +253,7 @@ export default function AdscripcionPage() {
       semana_termino: ficha.fecha_termino
         ? format(parseISO(ficha.fecha_termino), "dd 'de' MMMM, yyyy", { locale: es })
         : "N/A",
-      directivo: selectedDirectivo,
+      directivo: mainDirectivo,
     };
 
     const rendered = renderTemplate(studentTemplate, templateData);
@@ -248,7 +265,7 @@ export default function AdscripcionPage() {
     allCupos,
     allNivelesPractica,
     selectedEstablecimiento,
-    selectedDirectivo,
+    mainDirectivo,
   ]);
 
   const renderTemplate = (template: string, data: Record<string, any>): string => {
@@ -317,58 +334,58 @@ export default function AdscripcionPage() {
   };
 
   useEffect(() => {
-  if (!selectedEstablecimiento || !selectedDirectivo) {
-    setRenderedEmail(
-      "<p class='text-muted-foreground p-4 text-center'>Por favor, selecciona un establecimiento para generar la previsualización del correo.</p>"
-    );
-    return;
-  }
+    if (!selectedEstablecimiento || !mainDirectivo) {
+      setRenderedEmail(
+        "<p class='text-muted-foreground p-4 text-center'>Por favor, selecciona un establecimiento y un directivo para generar la previsualización del correo.</p>"
+      );
+      return;
+    }
 
-  const fichasForTemplate = createdFichas.map((ficha) => {
-    const student = allStudents.find((s) => s.id === ficha.estudiante_id);
-    const cupo = allCupos.find((c) => c.id === ficha.cupo_id);
-    const nivel = allNivelesPractica.find((n) => n.id === cupo?.nivel_practica_id);
+    const fichasForTemplate = createdFichas.map((ficha) => {
+      const student = allStudents.find((s) => s.id === ficha.estudiante_id);
+      const cupo = allCupos.find((c) => c.id === ficha.cupo_id);
+      const nivel = allNivelesPractica.find((n) => n.id === cupo?.nivel_practica_id);
 
-    return {
-      ...ficha,
-      estudiante: student
-        ? {
-            ...student,
-            carrera: getCarreraName(student.carrera_id),
-          }
-        : {},
-      nivel_practica: nivel?.nombre || "",
+      return {
+        ...ficha,
+        estudiante: student
+          ? {
+              ...student,
+              carrera: getCarreraName(student.carrera_id),
+            }
+          : {},
+        nivel_practica: nivel?.nombre || "",
+      };
+    });
+
+    const templateData = {
+      directivo: mainDirectivo,
+      establecimiento: selectedEstablecimiento,
+      semana_inicio_profesional: professionalDates.inicio
+        ? format(parseISO(professionalDates.inicio), "dd 'de' MMMM", { locale: es })
+        : "N/A",
+      semana_termino_profesional: professionalDates.termino
+        ? format(parseISO(professionalDates.termino), "dd 'de' MMMM", { locale: es })
+        : "N/A",
+      numero_semanas_profesional: calculateWeeks(
+        professionalDates.inicio,
+        professionalDates.termino
+      ),
+      semana_inicio_pp: pedagogicalDates.inicio
+        ? format(parseISO(pedagogicalDates.inicio), "dd 'de' MMMM", { locale: es })
+        : "N/A",
+      semana_termino_pp: pedagogicalDates.termino
+        ? format(parseISO(pedagogicalDates.termino), "dd 'de' MMMM", { locale: es })
+        : "N/A",
+      numero_semanas_pp: calculateWeeks(pedagogicalDates.inicio, pedagogicalDates.termino),
+      fichas: fichasForTemplate,
     };
-  });
 
-  const templateData = {
-    directivo: selectedDirectivo,
-    establecimiento: selectedEstablecimiento,
-    semana_inicio_profesional: professionalDates.inicio
-      ? format(parseISO(professionalDates.inicio), "dd 'de' MMMM", { locale: es })
-      : "N/A",
-    semana_termino_profesional: professionalDates.termino
-      ? format(parseISO(professionalDates.termino), "dd 'de' MMMM", { locale: es })
-      : "N/A",
-    numero_semanas_profesional: calculateWeeks(
-      professionalDates.inicio,
-      professionalDates.termino
-    ),
-    semana_inicio_pp: pedagogicalDates.inicio
-      ? format(parseISO(pedagogicalDates.inicio), "dd 'de' MMMM", { locale: es })
-      : "N/A",
-    semana_termino_pp: pedagogicalDates.termino
-      ? format(parseISO(pedagogicalDates.termino), "dd 'de' MMMM", { locale: es })
-      : "N/A",
-    numero_semanas_pp: calculateWeeks(pedagogicalDates.inicio, pedagogicalDates.termino),
-    fichas: fichasForTemplate,
-  };
-
-  const rendered = renderTemplate(establishmentTemplate, templateData);
+    const rendered = renderTemplate(establishmentTemplate, templateData);
     setRenderedEmail(rendered);
   }, [
     selectedEstablecimiento,
-    selectedDirectivo,
+    mainDirectivo,
     establishmentTemplate,
     professionalDates,
     pedagogicalDates,
@@ -383,14 +400,15 @@ export default function AdscripcionPage() {
     if (!searchTerm) {
       return availableStudents;
     }
+    const term = searchTerm.toLowerCase();
     return availableStudents.filter(
       (student) =>
-        student.rut.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.rut.toLowerCase().includes(term) ||
         `${student.nombre} ${student.ap_paterno} ${student.ap_materno}`
           .toLowerCase()
-          .includes(searchTerm.toLowerCase()) ||
-        student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        getCarreraName(student.carrera_id).toLowerCase().includes(searchTerm.toLowerCase())
+          .includes(term) ||
+        student.email.toLowerCase().includes(term) ||
+        getCarreraName(student.carrera_id).toLowerCase().includes(term)
     );
   }, [searchTerm, availableStudents, allCarreras]);
 
@@ -450,7 +468,12 @@ export default function AdscripcionPage() {
     pedagogicalDates.termino &&
     selectedStudents.every((s) => studentCupoAssignments[s.id]);
 
-  const isStep2Valid = selectedEstablecimientoId !== null && createdFichas.length > 0;
+  const isStep2Valid =
+    selectedEstablecimientoId !== null &&
+    createdFichas.length > 0 &&
+    selectedRecipientIds.length > 0 &&
+    mainDirectivoId !== null;
+
   const isStep3Valid =
     createdFichas.length > 0 &&
     Object.keys(studentsGroupedByLevel).every((nivelId) => scheduledSendTimes[nivelId]);
@@ -512,21 +535,24 @@ export default function AdscripcionPage() {
   };
 
   const handleSendNotification = async () => {
-    if (!selectedEstablecimiento || !selectedDirectivo) {
+    if (!selectedEstablecimiento || mainDirectivoId === null || selectedRecipientIds.length === 0) {
       toast({
         title: "Información incompleta",
         description:
-          "No se ha seleccionado un establecimiento o no se encontró un directivo asociado.",
+          "Selecciona al menos un destinatario y define quién es el directivo principal para la plantilla.",
         variant: "destructive",
       });
       return;
     }
 
+    const recipientEmails = establishmentDirectivos
+      .filter((d) => selectedRecipientIds.includes(d.id))
+      .map((d) => d.email);
+
     if (createdFichas.length === 0) {
       toast({
         title: "No hay fichas para enviar",
-        description:
-          "No se encontraron fichas creadas en este proceso. Vuelve al paso 1 e inténtalo de nuevo.",
+        description: "No se encontraron fichas creadas en este proceso.",
         variant: "destructive",
       });
       return;
@@ -537,10 +563,10 @@ export default function AdscripcionPage() {
     const emailPayload: SendEmailToEstablecimientoPayload = {
       email: {
         subject: `Notificación de adscripción de prácticas - ${selectedEstablecimiento.nombre}`,
-        email: [selectedDirectivo.email],
+        email: recipientEmails,
       },
       body: {
-        directivo: selectedDirectivo,
+        directivo: mainDirectivo,
         establecimiento: selectedEstablecimiento,
         fichas: createdFichas,
         semana_inicio_profesional: professionalDates.inicio
@@ -567,7 +593,7 @@ export default function AdscripcionPage() {
       await api.sendEmailToEstablecimiento(selectedEstablecimiento.id, emailPayload);
       toast({
         title: "Notificación enviada",
-        description: `El correo ha sido enviado a ${selectedDirectivo.email}.`,
+        description: `El correo ha sido enviado a ${recipientEmails.join(", ")}.`,
       });
       setEmailSent(true);
     } catch (error) {
@@ -1111,9 +1137,7 @@ export default function AdscripcionPage() {
                         disabled={!isStep1Valid || isCreatingFichas}
                       >
                         {isCreatingFichas ? "Creando fichas..." : "Crear fichas y continuar"}
-                        {!isCreatingFichas && (
-                          <ChevronRight className="ml-2 h-4 w-4" />
-                        )}
+                        {!isCreatingFichas && <ChevronRight className="ml-2 h-4 w-4" />}
                       </Button>
                     </div>
                   </CardContent>
@@ -1129,41 +1153,118 @@ export default function AdscripcionPage() {
                     Paso 2: notificación al establecimiento
                   </CardTitle>
                   <CardDescription>
-                    Revisa la previsualización del correo de notificación. La plantilla se edita en
-                    la sección <span className="font-semibold">&quot;Plantillas&quot;</span>.
+                    Selecciona los destinatarios, define el directivo principal para la plantilla y
+                    revisa la previsualización del correo.
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-6">
-                  {selectedEstablecimiento && selectedDirectivo && (
-                    <div className="space-y-1 rounded-lg bg-muted/50 p-4 text-sm">
-                      <p>
-                        <span className="font-semibold">Establecimiento:</span>{" "}
-                        {selectedEstablecimiento.nombre}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Comuna:</span>{" "}
-                        {getComunaName(selectedEstablecimiento.comuna_id)}
-                      </p>
-                      <p>
-                        <span className="font-semibold">Destinatario:</span>{" "}
-                        {selectedDirectivo.nombre} ({selectedDirectivo.email})
-                      </p>
-                      <p>
-                        <span className="font-semibold">Estudiantes incluidos:</span>{" "}
-                        {createdFichas.length}
-                      </p>
-                    </div>
-                  )}
+                <CardContent className="space-y-8">
+                  <div className="grid gap-8 lg:grid-cols-[1fr_1.5fr]">
+                    {/* Panel de selección de directivos */}
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                        <Label className="text-base font-semibold">Configuración del envío</Label>
+                        <div className="rounded-md border bg-card">
+                          <div className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 border-b bg-muted/30 px-4 py-2 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                            <div className="w-4" />
+                            <span>Directivo / Cargo</span>
+                            <span className="text-center">Enviar a</span>
+                            <span className="text-center">Plantilla</span>
+                          </div>
+                          <div className="max-h-[300px] overflow-y-auto">
+                            {establishmentDirectivos.map((directivo) => (
+                              <div
+                                key={directivo.id}
+                                className="grid grid-cols-[auto_1fr_auto_auto] items-center gap-4 px-4 py-3 transition-colors hover:bg-muted/20 border-b last:border-0"
+                              >
+                                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                                  {directivo.nombre.charAt(0)}
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-medium leading-none">
+                                    {directivo.nombre}
+                                  </p>
+                                  <p className="truncate text-xs text-muted-foreground">
+                                    {directivo.cargo}
+                                  </p>
+                                </div>
+                                <div className="flex justify-center">
+                                  <Checkbox
+                                    checked={selectedRecipientIds.includes(directivo.id)}
+                                    onCheckedChange={(checked) => {
+                                      if (checked) {
+                                        setSelectedRecipientIds((prev) => [...prev, directivo.id]);
+                                      } else {
+                                        setSelectedRecipientIds((prev) =>
+                                          prev.filter((id) => id !== directivo.id)
+                                        );
+                                      }
+                                    }}
+                                  />
+                                </div>
+                                <div className="flex justify-center">
+                                  <input
+                                    type="radio"
+                                    name="main-directivo"
+                                    className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+                                    checked={mainDirectivoId === directivo.id}
+                                    onChange={() => setMainDirectivoId(directivo.id)}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                            {establishmentDirectivos.length === 0 && (
+                              <div className="p-8 text-center">
+                                <p className="text-xs text-destructive">
+                                  No hay directivos registrados para este establecimiento.
+                                </p>
+                                <p className="mt-1 text-[10px] text-muted-foreground">
+                                  Agrega contactos en la sección de Colegios o Directivos.
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-muted-foreground italic">
+                          * Marca "Enviar a" para incluir en los destinatarios (EmailSchema).
+                          <br />* Marca "Plantilla" para usar los datos del directivo en el cuerpo
+                          del correo.
+                        </p>
+                      </div>
 
-                  <div className="space-y-2">
-                    <Label>Previsualización del correo al establecimiento</Label>
-                    <EditableHtmlDisplay
-                      key={selectedEstablecimientoId || "no-establecimiento-selected"}
-                      initialHtml={renderedEmail}
-                      editable={false}
-                      className="w-full min-h-[320px] max-h-[60vh] overflow-y-auto rounded-md border bg-background"
-                      aria-label="Previsualización del contenido del correo"
-                    />
+                      {selectedEstablecimiento && (
+                        <div className="space-y-2 rounded-lg bg-muted/40 p-4 text-xs">
+                          <p>
+                            <span className="font-semibold">Establecimiento:</span>{" "}
+                            {selectedEstablecimiento.nombre}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Comuna:</span>{" "}
+                            {getComunaName(selectedEstablecimiento.comuna_id)}
+                          </p>
+                          <p>
+                            <span className="font-semibold">Destinatarios:</span>{" "}
+                            {selectedRecipientIds.length} seleccionado(s)
+                          </p>
+                          <p>
+                            <span className="font-semibold">Fichas a notificar:</span>{" "}
+                            {createdFichas.length}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Previsualización del correo */}
+                    <div className="space-y-4">
+                      <Label className="text-base font-semibold">
+                        Previsualización del contenido
+                      </Label>
+                      <EditableHtmlDisplay
+                        key={`${selectedEstablecimientoId}-${mainDirectivoId}`}
+                        initialHtml={renderedEmail}
+                        editable={false}
+                        className="w-full min-h-[320px] max-h-[60vh] overflow-y-auto rounded-md border bg-background"
+                      />
+                    </div>
                   </div>
 
                   <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
