@@ -38,6 +38,13 @@ type DashboardData = {
   proximasFechas: ProximaFecha[];
 };
 
+// Helper para parsear fechas yyyy-mm-dd como locales
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
 export default function DashboardPage() {
   const { toast } = useToast();
 
@@ -59,22 +66,21 @@ export default function DashboardPage() {
       const totalEstablecimientos = establecimientos.length;
 
       const hoy = new Date();
-      const hoyCero = new Date(hoy);
-      hoyCero.setHours(0, 0, 0, 0);
+      hoy.setHours(0, 0, 0, 0);
 
       // Consideramos:
       // - Activa: hoy entre fecha_inicio y fecha_termino
       // - Pendiente: fecha_inicio en el futuro
       const practicasActivas = fichas.filter((ficha) => {
         if (!ficha.fecha_inicio || !ficha.fecha_termino) return false;
-        const inicio = new Date(ficha.fecha_inicio);
-        const termino = new Date(ficha.fecha_termino);
+        const inicio = parseLocalDate(ficha.fecha_inicio);
+        const termino = parseLocalDate(ficha.fecha_termino);
         return inicio <= hoy && hoy <= termino;
       }).length;
 
       const practicasPendientes = fichas.filter((ficha) => {
         if (!ficha.fecha_inicio) return false;
-        const inicio = new Date(ficha.fecha_inicio);
+        const inicio = parseLocalDate(ficha.fecha_inicio);
         return inicio > hoy;
       }).length;
 
@@ -86,11 +92,10 @@ export default function DashboardPage() {
           descripcion: f.descripcion || "Sin descripción adicional.",
         }))
         .sort((a, b) => {
-          const dateA = new Date(a.fecha).getTime();
-          const dateB = new Date(b.fecha).getTime();
-          const target = hoyCero.getTime();
+          const dateA = parseLocalDate(a.fecha).getTime();
+          const dateB = parseLocalDate(b.fecha).getTime();
+          const target = hoy.getTime();
           
-          // Priorizamos las que están por venir, pero mostramos las más cercanas en general
           return Math.abs(dateA - target) - Math.abs(dateB - target);
         })
         .slice(0, 3);
@@ -354,10 +359,9 @@ export default function DashboardPage() {
             {data.proximasFechas.length > 0 ? (
               <ul className="space-y-3">
                 {data.proximasFechas.map((item) => {
-                  const fecha = new Date(item.fecha);
+                  const fecha = parseLocalDate(item.fecha);
                   const hoy = new Date();
                   hoy.setHours(0, 0, 0, 0);
-                  fecha.setHours(0, 0, 0, 0);
 
                   const diffMs = fecha.getTime() - hoy.getTime();
                   const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));

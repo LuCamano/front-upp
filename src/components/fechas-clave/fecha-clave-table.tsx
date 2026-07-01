@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { FechaClave } from "@/lib/definitions";
@@ -12,7 +11,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { FilePenLine, Trash2, Calendar } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 import { es } from "date-fns/locale/es";
 import {
   AlertDialog,
@@ -36,7 +35,10 @@ export function FechaClaveTable({ fechas, onEdit, onDelete }: FechaClaveTablePro
   
   const formatDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), "dd 'de' MMMM, yyyy", { locale: es });
+      // Parseo manual para evitar desfase de zona horaria (UTC vs Local)
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
+      return format(date, "dd 'de' MMMM, yyyy", { locale: es });
     } catch (e) {
       return dateStr;
     }
