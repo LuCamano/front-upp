@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -12,6 +13,7 @@ import type {
   Ficha,
   EmailSchema,
   SendEmailToEstablecimientoPayload,
+  FechaClave,
 } from "@/lib/definitions";
 import * as api from "@/lib/api";
 import { format, parseISO, differenceInWeeks } from "date-fns";
@@ -40,6 +42,7 @@ import {
   Send,
   ChevronsUpDown,
   Check,
+  CalendarClock,
 } from "lucide-react";
 import { EditableHtmlDisplay } from "@/components/shared/editable-html-display";
 import { useToast } from "@/hooks/use-toast";
@@ -160,6 +163,7 @@ export default function AsignacionPage() {
           estTemplateData,
           stuTemplateData,
           fichasData,
+          fechasClaveData,
         ] = await Promise.all([
           api.getEstudiantes(),
           api.getEstablecimientos(),
@@ -171,6 +175,7 @@ export default function AsignacionPage() {
           api.getEstablishmentEmailTemplate(),
           api.getStudentEmailTemplate(),
           api.getFichas(),
+          api.getFechasClave(),
         ]);
         setAllStudents(studentsData);
         setAvailableStudents(studentsData);
@@ -183,6 +188,28 @@ export default function AsignacionPage() {
         setEstablishmentTemplate(estTemplateData || "");
         setStudentTemplate(stuTemplateData || "");
         setAllFichas(fichasData);
+
+        // Pre-poblar fechas clave si existen
+        if (fechasClaveData && fechasClaveData.length > 0) {
+          const inicioProf = fechasClaveData.find(f => f.nombre.toLowerCase().includes("inicio profesional"));
+          const terminoProf = fechasClaveData.find(f => f.nombre.toLowerCase().includes("término profesional"));
+          const inicioPed = fechasClaveData.find(f => f.nombre.toLowerCase().includes("inicio pedagógica"));
+          const terminoPed = fechasClaveData.find(f => f.nombre.toLowerCase().includes("término pedagógica"));
+
+          if (inicioProf || terminoProf) {
+            setProfessionalDates({
+              inicio: inicioProf?.fecha || "",
+              termino: terminoProf?.fecha || "",
+            });
+          }
+          if (inicioPed || terminoPed) {
+            setPedagogicalDates({
+              inicio: inicioPed?.fecha || "",
+              termino: terminoPed?.fecha || "",
+            });
+          }
+        }
+
       } catch (error) {
         toast({
           title: "Error al cargar datos",
@@ -872,11 +899,6 @@ export default function AsignacionPage() {
                           </CardTitle>
                           <CardDescription className="text-xs space-y-1">
                             <p>Se aplican a los niveles marcados como &quot;Profesional&quot;.</p>
-                            <p>
-                              Sugerencia: selecciona el{" "}
-                              <span className="font-semibold">lunes</span> de la semana de inicio y
-                              término.
-                            </p>
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -922,11 +944,6 @@ export default function AsignacionPage() {
                           <CardDescription className="text-xs space-y-1">
                             <p>
                               Se aplican a todos los niveles que no son &quot;Profesional&quot;.
-                            </p>
-                            <p>
-                              Sugerencia: selecciona el{" "}
-                              <span className="font-semibold">lunes</span> de la semana de inicio y
-                              término.
                             </p>
                           </CardDescription>
                         </CardHeader>
