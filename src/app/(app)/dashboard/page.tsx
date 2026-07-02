@@ -13,12 +13,20 @@ import {
   Activity,
   CalendarClock,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import * as api from "@/lib/api";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ProximaFecha = {
   fecha: string;
+  nombre: string;
   descripcion: string;
 };
 
@@ -30,11 +38,12 @@ type DashboardData = {
   proximasFechas: ProximaFecha[];
 };
 
-const FALLBACK_FECHAS: ProximaFecha[] = [
-  { fecha: "2025-03-10", descripcion: "Cierre de inscripción práctica I" },
-  { fecha: "2025-03-18", descripcion: "Inicio envío de correos a establecimientos" },
-  { fecha: "2025-04-01", descripcion: "Plazo máximo para asignar estudiantes" },
-];
+// Helper para parsear fechas yyyy-mm-dd como locales
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 
 export default function DashboardPage() {
   const { toast } = useToast();
@@ -46,39 +55,57 @@ export default function DashboardPage() {
   const loadDashboard = async () => {
     setIsLoading(true);
     try {
-      const [estudiantes, establecimientos, fichas] = await Promise.all([
+      const [estudiantes, establecimientos, fichas, fechasClave] = await Promise.all([
         api.getEstudiantes(),
         api.getEstablecimientos(),
         api.getFichas(),
+        api.getFechasClave(),
       ]);
 
       const totalEstudiantes = estudiantes.length;
       const totalEstablecimientos = establecimientos.length;
 
       const hoy = new Date();
+      hoy.setHours(0, 0, 0, 0);
 
       // Consideramos:
       // - Activa: hoy entre fecha_inicio y fecha_termino
       // - Pendiente: fecha_inicio en el futuro
       const practicasActivas = fichas.filter((ficha) => {
         if (!ficha.fecha_inicio || !ficha.fecha_termino) return false;
-        const inicio = new Date(ficha.fecha_inicio);
-        const termino = new Date(ficha.fecha_termino);
+        const inicio = parseLocalDate(ficha.fecha_inicio);
+        const termino = parseLocalDate(ficha.fecha_termino);
         return inicio <= hoy && hoy <= termino;
       }).length;
 
       const practicasPendientes = fichas.filter((ficha) => {
         if (!ficha.fecha_inicio) return false;
-        const inicio = new Date(ficha.fecha_inicio);
+        const inicio = parseLocalDate(ficha.fecha_inicio);
         return inicio > hoy;
       }).length;
+
+      // Procesar fechas clave: ordenar por cercanía a hoy
+      const proximasFechas: ProximaFecha[] = fechasClave
+        .map((f) => ({
+          fecha: f.fecha,
+          nombre: f.nombre,
+          descripcion: f.descripcion || "Sin descripción adicional.",
+        }))
+        .sort((a, b) => {
+          const dateA = parseLocalDate(a.fecha).getTime();
+          const dateB = parseLocalDate(b.fecha).getTime();
+          const target = hoy.getTime();
+          
+          return Math.abs(dateA - target) - Math.abs(dateB - target);
+        })
+        .slice(0, 3);
 
       setData({
         totalEstudiantes,
         totalEstablecimientos,
         practicasActivas,
         practicasPendientes,
-        proximasFechas: FALLBACK_FECHAS,
+        proximasFechas,
       });
     } catch (error) {
       console.error("Error loading dashboard:", error);
@@ -89,13 +116,12 @@ export default function DashboardPage() {
         variant: "destructive",
       });
 
-      // Fallback mínimo para que no se rompa la vista
       setData({
         totalEstudiantes: 0,
         totalEstablecimientos: 0,
         practicasActivas: 0,
         practicasPendientes: 0,
-        proximasFechas: FALLBACK_FECHAS,
+        proximasFechas: [],
       });
     } finally {
       setIsLoading(false);
@@ -129,7 +155,6 @@ export default function DashboardPage() {
   };
 
   if (isLoading && !data) {
-    // Skeleton simple de carga
     return (
       <div className="space-y-6">
         <div className="space-y-2">
@@ -151,7 +176,6 @@ export default function DashboardPage() {
     );
   }
 
-  // Si por alguna razón no hay datos, mostramos algo muy básico
   if (!data) {
     return (
       <div className="space-y-4">
@@ -169,13 +193,12 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Título y descripción */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <h1 className="text-3xl font-bold font-headline">Dashboard</h1>
           <p className="text-sm text-muted-foreground">
-            Bienvenido a {process.env.NEXT_PUBLIC_APP_NAME || "Gestión de prácticas"}. Revisa el
-            estado general del sistema y accede a las herramientas de configuración.
+            Bienvenido al sistema de Gestión de Prácticas. Revisa el
+            estado general y las fechas próximas de interés.
           </p>
         </div>
         <Button
@@ -190,9 +213,7 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Métricas principales */}
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Estudiantes */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Estudiantes registrados</CardTitle>
@@ -203,18 +224,13 @@ export default function DashboardPage() {
               <span className="text-3xl font-semibold tracking-tight">
                 {data.totalEstudiantes}
               </span>
-              {/* Si quisieras, aquí podrías calcular crecimiento real más adelante */}
-              <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                +8 hoy
-              </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Estudiantes con cuenta en el sistema.
+              Estudiantes activos en la base de datos.
             </p>
           </CardContent>
         </Card>
 
-        {/* Establecimientos */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Establecimientos</CardTitle>
@@ -225,17 +241,13 @@ export default function DashboardPage() {
               <span className="text-3xl font-semibold tracking-tight">
                 {data.totalEstablecimientos}
               </span>
-              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                4 nuevos este semestre
-              </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Colegios / instituciones con convenio activo.
+              Centros de práctica registrados.
             </p>
           </CardContent>
         </Card>
 
-        {/* Prácticas activas */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Prácticas activas</CardTitle>
@@ -247,11 +259,11 @@ export default function DashboardPage() {
                 {data.practicasActivas}
               </span>
               <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                {porcentajeActivas}% del total
+                {porcentajeActivas}%
               </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Estudiantes actualmente realizando su práctica.
+              Alumnos en terreno actualmente.
             </p>
             <div className="mt-3 h-2 w-full rounded-full bg-muted">
               <div
@@ -262,10 +274,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Prácticas pendientes */}
         <Card className="relative overflow-hidden">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Prácticas pendientes</CardTitle>
+            <CardTitle className="text-sm font-medium">Asignaciones pendientes</CardTitle>
             <CalendarClock className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
@@ -273,12 +284,9 @@ export default function DashboardPage() {
               <span className="text-3xl font-semibold tracking-tight">
                 {data.practicasPendientes}
               </span>
-              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-                {porcentajePendientes}% por asignar
-              </span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              Asignaciones por revisar o confirmar.
+              Procesos de práctica por iniciar.
             </p>
             <div className="mt-3 h-2 w-full rounded-full bg-muted">
               <div
@@ -290,22 +298,20 @@ export default function DashboardPage() {
         </Card>
       </section>
 
-      {/* Resumen visual y fechas clave */}
       <section className="grid gap-6 lg:grid-cols-[2fr,1.2fr]">
-        {/* Resumen visual */}
         <Card>
           <CardHeader>
             <CardTitle className="font-headline text-base">
-              Resumen visual de estado de prácticas
+              Distribución de Prácticas
             </CardTitle>
             <CardDescription>
-              Distribución general de prácticas activas y pendientes.
+              Comparativa visual entre procesos activos y pendientes.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Prácticas activas</span>
+                <span>Prácticas en curso</span>
                 <span>{porcentajeActivas}%</span>
               </div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
@@ -316,7 +322,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <span>Prácticas pendientes</span>
+                <span>Prácticas por iniciar</span>
                 <span>{porcentajePendientes}%</span>
               </div>
               <div className="h-3 w-full overflow-hidden rounded-full bg-muted">
@@ -329,91 +335,125 @@ export default function DashboardPage() {
 
             <div className="grid grid-cols-2 gap-4 text-xs">
               <div className="rounded-lg border bg-muted/40 p-3">
-                <p className="mb-1 text-muted-foreground">Total de prácticas</p>
+                <p className="mb-1 text-muted-foreground">Total de fichas</p>
                 <p className="text-xl font-semibold">{practicasTotales}</p>
               </div>
               <div className="rounded-lg border bg-muted/40 p-3">
-                <p className="mb-1 text-muted-foreground">Relación activo / pendiente</p>
+                <p className="mb-1 text-muted-foreground">Relación Activo:Pendiente</p>
                 <p className="text-xl font-semibold">
-                  {practicasTotales
-                    ? `${data.practicasActivas}:${data.practicasPendientes}`
-                    : "0:0"}
+                  {data.practicasActivas}:{data.practicasPendientes}
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Próximas fechas */}
         <Card className="h-full">
           <CardHeader>
             <CardTitle className="font-headline">Próximas fechas clave</CardTitle>
             <CardDescription>
-              Hitos importantes relacionados con inscripciones y asignaciones.
+              Hitos importantes del calendario académico.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <ul className="space-y-3">
-              {data.proximasFechas.map((item) => {
-                const fecha = new Date(item.fecha);
-                const hoy = new Date();
-                hoy.setHours(0, 0, 0, 0);
-                fecha.setHours(0, 0, 0, 0);
+            {data.proximasFechas.length > 0 ? (
+              <ul className="space-y-3">
+                {data.proximasFechas.map((item) => {
+                  const fecha = parseLocalDate(item.fecha);
+                  const hoy = new Date();
+                  hoy.setHours(0, 0, 0, 0);
 
-                const diffMs = fecha.getTime() - hoy.getTime();
-                const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
+                  const diffMs = fecha.getTime() - hoy.getTime();
+                  const diffDias = Math.round(diffMs / (1000 * 60 * 60 * 24));
 
-                return (
-                  <li
-                    key={item.fecha + item.descripcion}
-                    className="flex items-start justify-between rounded-md border p-3 text-sm"
-                  >
-                    <div>
-                      <p className="font-medium">{item.descripcion}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {fecha.toLocaleDateString("es-CL", {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })}
-                      </p>
-                    </div>
-                    <span
-                      className={[
-                        "ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium",
-                        diffDias < 0
-                          ? "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
-                          : diffDias === 0
-                          ? "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
-                          : diffDias <= 7
-                          ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
-                          : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
-                      ].join(" ")}
+                  return (
+                    <li
+                      key={item.fecha + item.nombre}
+                      className="group flex items-start justify-between rounded-md border p-3 text-sm transition-colors hover:bg-muted/30"
                     >
-                      {diffDias < 0
-                        ? "Vencido"
-                        : diffDias === 0
-                        ? "Hoy"
-                        : `En ${diffDias} día${diffDias === 1 ? "" : "s"}`}
-                    </span>
-                  </li>
-                );
-              })}
-            </ul>
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{item.nombre}</p>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="right">
+                                <p className="max-w-xs">{item.descripcion}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {fecha.toLocaleDateString("es-CL", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <span
+                        className={[
+                          "ml-3 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-medium",
+                          diffDias < 0
+                            ? "bg-rose-50 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+                            : diffDias === 0
+                            ? "bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300"
+                            : diffDias <= 7
+                            ? "bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                            : "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300",
+                        ].join(" ")}
+                      >
+                        {diffDias < 0
+                          ? "Pasado"
+                          : diffDias === 0
+                          ? "Hoy"
+                          : `En ${diffDias} d`}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-center">
+                <CalendarClock className="h-10 w-10 text-muted-foreground opacity-20" />
+                <p className="mt-2 text-sm text-muted-foreground">No hay fechas clave registradas.</p>
+                <Link href="/fechas-clave" className="mt-2 text-xs text-primary hover:underline">
+                  Configurar calendario
+                </Link>
+              </div>
+            )}
           </CardContent>
         </Card>
       </section>
 
-      {/* Configuración y herramientas */}
       <section>
         <Card className="h-full">
           <CardHeader>
-            <CardTitle className="font-headline">Configuración y herramientas</CardTitle>
+            <CardTitle className="font-headline">Herramientas de Gestión</CardTitle>
             <CardDescription>
-              Accesos directos a las acciones administrativas más frecuentes.
+              Accesos directos a las funciones más utilizadas.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <Link
+              href="/asignacion"
+              className="block rounded-lg border p-4 transition-colors hover:bg-muted/50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Activity className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-semibold">Nuevo Proceso de Asignación</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Inicia el flujo guiado para asignar estudiantes a establecimientos.
+                  </p>
+                </div>
+              </div>
+            </Link>
+
             <Link
               href="/plantillas"
               className="block rounded-lg border p-4 transition-colors hover:bg-muted/50"
@@ -423,26 +463,9 @@ export default function DashboardPage() {
                   <FileText className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-semibold">Editor de plantillas de correo</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Modifica los correos que se envían a establecimientos y estudiantes.
-                  </p>
-                </div>
-              </div>
-            </Link>
-
-            <Link
-              href="/carga-masiva"
-              className="block rounded-lg border p-4 transition-colors hover:bg-muted/50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                  <Upload className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold">Carga masiva de datos</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Sube archivos Excel para añadir estudiantes, colegios y más.
+                  <h3 className="font-semibold">Editor de Plantillas</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Modifica los mensajes automáticos de notificación.
                   </p>
                 </div>
               </div>

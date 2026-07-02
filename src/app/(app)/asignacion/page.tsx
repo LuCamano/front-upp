@@ -12,6 +12,7 @@ import type {
   Ficha,
   EmailSchema,
   SendEmailToEstablecimientoPayload,
+  FechaClave,
 } from "@/lib/definitions";
 import * as api from "@/lib/api";
 import { format, parseISO, differenceInWeeks } from "date-fns";
@@ -40,6 +41,7 @@ import {
   Send,
   ChevronsUpDown,
   Check,
+  CalendarClock,
 } from "lucide-react";
 import { EditableHtmlDisplay } from "@/components/shared/editable-html-display";
 import { useToast } from "@/hooks/use-toast";
@@ -60,6 +62,13 @@ const ASIGNACION_STEPS = {
   STEP2: "notificacion-establecimiento",
   STEP3: "notificacion-estudiantes",
 } as const;
+
+// Helper para parsear fechas yyyy-mm-dd como locales
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return null;
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
 
 // Helper para acceder propiedades anidadas
 const get = (obj: any, path: string, defaultValue: any = undefined) => {
@@ -160,6 +169,7 @@ export default function AsignacionPage() {
           estTemplateData,
           stuTemplateData,
           fichasData,
+          fechasClaveData,
         ] = await Promise.all([
           api.getEstudiantes(),
           api.getEstablecimientos(),
@@ -171,6 +181,7 @@ export default function AsignacionPage() {
           api.getEstablishmentEmailTemplate(),
           api.getStudentEmailTemplate(),
           api.getFichas(),
+          api.getFechasClave(),
         ]);
         setAllStudents(studentsData);
         setAvailableStudents(studentsData);
@@ -183,6 +194,28 @@ export default function AsignacionPage() {
         setEstablishmentTemplate(estTemplateData || "");
         setStudentTemplate(stuTemplateData || "");
         setAllFichas(fichasData);
+
+        // Pre-poblar fechas clave si existen
+        if (fechasClaveData && fechasClaveData.length > 0) {
+          const inicioProf = fechasClaveData.find(f => f.nombre.toLowerCase().includes("inicio profesional"));
+          const terminoProf = fechasClaveData.find(f => f.nombre.toLowerCase().includes("término profesional"));
+          const inicioPed = fechasClaveData.find(f => f.nombre.toLowerCase().includes("inicio pedagógica"));
+          const terminoPed = fechasClaveData.find(f => f.nombre.toLowerCase().includes("término pedagógica"));
+
+          if (inicioProf || terminoProf) {
+            setProfessionalDates({
+              inicio: inicioProf?.fecha || "",
+              termino: terminoProf?.fecha || "",
+            });
+          }
+          if (inicioPed || terminoPed) {
+            setPedagogicalDates({
+              inicio: inicioPed?.fecha || "",
+              termino: terminoPed?.fecha || "",
+            });
+          }
+        }
+
       } catch (error) {
         toast({
           title: "Error al cargar datos",
@@ -243,15 +276,18 @@ export default function AsignacionPage() {
     const cupo = allCupos.find((c) => c.id === ficha.cupo_id);
     const nivel = allNivelesPractica.find((n) => n.id === cupo?.nivel_practica_id);
 
+    const inicio = parseLocalDate(ficha.fecha_inicio);
+    const termino = parseLocalDate(ficha.fecha_termino || "");
+
     const templateData = {
       estudiante: previewStudent,
       nombre_establecimiento: selectedEstablecimiento.nombre,
       nivel_practica: nivel?.nombre || "N/A",
-      semana_inicio: ficha.fecha_inicio
-        ? format(parseISO(ficha.fecha_inicio), "dd 'de' MMMM, yyyy", { locale: es })
+      semana_inicio: inicio
+        ? format(inicio, "dd 'de' MMMM, yyyy", { locale: es })
         : "N/A",
-      semana_termino: ficha.fecha_termino
-        ? format(parseISO(ficha.fecha_termino), "dd 'de' MMMM, yyyy", { locale: es })
+      semana_termino: termino
+        ? format(termino, "dd 'de' MMMM, yyyy", { locale: es })
         : "N/A",
       directivo: mainDirectivo,
     };
@@ -300,12 +336,14 @@ export default function AsignacionPage() {
           return "";
         }
 
+        // Manejo especial de fechas ISO locales (YYYY-MM-DD)
         if (
           typeof value === "string" &&
-          /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2}(\.\d+)?(Z)?)?$/.test(value)
+          /^\d{4}-\d{2}-\d{2}$/.test(value)
         ) {
           try {
-            return format(parseISO(value), "dd 'de' MMMM, yyyy", { locale: es });
+            const date = parseLocalDate(value);
+            return date ? format(date, "dd 'de' MMMM, yyyy", { locale: es }) : value;
           } catch (e) {
             /* ignore */
           }
@@ -325,8 +363,9 @@ export default function AsignacionPage() {
   const calculateWeeks = (start: string, end: string) => {
     if (!start || !end) return 0;
     try {
-      const startDate = parseISO(start);
-      const endDate = parseISO(end);
+      const startDate = parseLocalDate(start);
+      const endDate = parseLocalDate(end);
+      if (!startDate || !endDate) return 0;
       return differenceInWeeks(endDate, startDate);
     } catch (e) {
       return 0;
@@ -358,24 +397,29 @@ export default function AsignacionPage() {
       };
     });
 
+    const inicioProf = parseLocalDate(professionalDates.inicio);
+    const terminoProf = parseLocalDate(professionalDates.termino);
+    const inicioPed = parseLocalDate(pedagogicalDates.inicio);
+    const terminoPed = parseLocalDate(pedagogicalDates.termino);
+
     const templateData = {
       directivo: mainDirectivo,
       establecimiento: selectedEstablecimiento,
-      semana_inicio_profesional: professionalDates.inicio
-        ? format(parseISO(professionalDates.inicio), "dd 'de' MMMM", { locale: es })
+      semana_inicio_profesional: inicioProf
+        ? format(inicioProf, "dd 'de' MMMM", { locale: es })
         : "N/A",
-      semana_termino_profesional: professionalDates.termino
-        ? format(parseISO(professionalDates.termino), "dd 'de' MMMM", { locale: es })
+      semana_termino_profesional: terminoProf
+        ? format(terminoProf, "dd 'de' MMMM", { locale: es })
         : "N/A",
       numero_semanas_profesional: calculateWeeks(
         professionalDates.inicio,
         professionalDates.termino
       ),
-      semana_inicio_pp: pedagogicalDates.inicio
-        ? format(parseISO(pedagogicalDates.inicio), "dd 'de' MMMM", { locale: es })
+      semana_inicio_pp: inicioPed
+        ? format(inicioPed, "dd 'de' MMMM", { locale: es })
         : "N/A",
-      semana_termino_pp: pedagogicalDates.termino
-        ? format(parseISO(pedagogicalDates.termino), "dd 'de' MMMM", { locale: es })
+      semana_termino_pp: terminoPed
+        ? format(terminoPed, "dd 'de' MMMM", { locale: es })
         : "N/A",
       numero_semanas_pp: calculateWeeks(pedagogicalDates.inicio, pedagogicalDates.termino),
       fichas: fichasForTemplate,
@@ -560,6 +604,11 @@ export default function AsignacionPage() {
 
     setIsSendingEmail(true);
 
+    const inicioProf = parseLocalDate(professionalDates.inicio);
+    const terminoProf = parseLocalDate(professionalDates.termino);
+    const inicioPed = parseLocalDate(pedagogicalDates.inicio);
+    const terminoPed = parseLocalDate(pedagogicalDates.termino);
+
     const emailPayload: SendEmailToEstablecimientoPayload = {
       email: {
         subject: `Notificación de asignación de prácticas - ${selectedEstablecimiento.nombre}`,
@@ -569,21 +618,21 @@ export default function AsignacionPage() {
         directivo: mainDirectivo,
         establecimiento: selectedEstablecimiento,
         fichas: createdFichas,
-        semana_inicio_profesional: professionalDates.inicio
-          ? format(parseISO(professionalDates.inicio), "dd 'de' MMMM", { locale: es })
+        semana_inicio_profesional: inicioProf
+          ? format(inicioProf, "dd 'de' MMMM", { locale: es })
           : "N/A",
-        semana_termino_profesional: professionalDates.termino
-          ? format(parseISO(professionalDates.termino), "dd 'de' MMMM", { locale: es })
+        semana_termino_profesional: terminoProf
+          ? format(terminoProf, "dd 'de' MMMM", { locale: es })
           : "N/A",
         numero_semanas_profesional: calculateWeeks(
           professionalDates.inicio,
           professionalDates.termino
         ),
-        semana_inicio_pp: pedagogicalDates.inicio
-          ? format(parseISO(pedagogicalDates.inicio), "dd 'de' MMMM", { locale: es })
+        semana_inicio_pp: inicioPed
+          ? format(inicioPed, "dd 'de' MMMM", { locale: es })
           : "N/A",
-        semana_termino_pp: pedagogicalDates.termino
-          ? format(parseISO(pedagogicalDates.termino), "dd 'de' MMMM", { locale: es })
+        semana_termino_pp: terminoPed
+          ? format(terminoPed, "dd 'de' MMMM", { locale: es })
           : "N/A",
         numero_semanas_pp: calculateWeeks(pedagogicalDates.inicio, pedagogicalDates.termino),
       },
@@ -872,11 +921,6 @@ export default function AsignacionPage() {
                           </CardTitle>
                           <CardDescription className="text-xs space-y-1">
                             <p>Se aplican a los niveles marcados como &quot;Profesional&quot;.</p>
-                            <p>
-                              Sugerencia: selecciona el{" "}
-                              <span className="font-semibold">lunes</span> de la semana de inicio y
-                              término.
-                            </p>
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
@@ -922,11 +966,6 @@ export default function AsignacionPage() {
                           <CardDescription className="text-xs space-y-1">
                             <p>
                               Se aplican a todos los niveles que no son &quot;Profesional&quot;.
-                            </p>
-                            <p>
-                              Sugerencia: selecciona el{" "}
-                              <span className="font-semibold">lunes</span> de la semana de inicio y
-                              término.
                             </p>
                           </CardDescription>
                         </CardHeader>

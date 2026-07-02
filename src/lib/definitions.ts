@@ -52,6 +52,12 @@ export type NivelPractica = {
   carrera_id: number;
 };
 
+export type FechaClave = {
+  nombre: string;
+  fecha: string; // ISO date string (YYYY-MM-DD)
+  descripcion?: string | null;
+};
+
 // Junction/relational entities
 export type Cupo = {
   id: number;

@@ -1,6 +1,6 @@
 
 import type { 
-    Carrera, Comuna, Cupo, Directivo, Establecimiento, Estudiante, Ficha, NivelPractica, Tutor, SendEmailToEstablecimientoPayload, EmailSchema 
+    Carrera, Comuna, Cupo, Directivo, Establecimiento, Estudiante, Ficha, NivelPractica, Tutor, SendEmailToEstablecimientoPayload, EmailSchema, FechaClave 
 } from './definitions';
 
 // Ensure you have NEXT_PUBLIC_API_URL in your .env.local file
@@ -110,6 +110,12 @@ export const getFichas = (): Promise<Ficha[]> => fetchAPI('/api/v1/fichas');
 export const createFicha = (data: Omit<Ficha, 'id'>): Promise<Ficha> => fetchAPI('/api/v1/fichas', { method: 'POST', body: JSON.stringify(data) });
 export const updateFicha = (id: number, data: Omit<Ficha, 'id'>): Promise<Ficha> => fetchAPI(`/api/v1/fichas/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 export const deleteFicha = (id: number): Promise<void> => fetchAPI(`/api/v1/fichas/${id}`, { method: 'DELETE' });
+
+// FechaClave API
+export const getFechasClave = (): Promise<FechaClave[]> => fetchAPI('/api/v1/fechasclave');
+export const createFechaClave = (data: FechaClave): Promise<FechaClave> => fetchAPI('/api/v1/fechasclave', { method: 'POST', body: JSON.stringify(data) });
+export const updateFechaClave = (nombre: string, data: FechaClave): Promise<FechaClave> => fetchAPI(`/api/v1/fechasclave/${encodeURIComponent(nombre)}`, { method: 'PUT', body: JSON.stringify(data) });
+export const deleteFechaClave = (nombre: string): Promise<void> => fetchAPI(`/api/v1/fechasclave/${encodeURIComponent(nombre)}`, { method: 'DELETE' });
 
 // Email API
 export const sendEmailToEstablecimiento = (establecimientoId: string, payload: SendEmailToEstablecimientoPayload): Promise<any> => {
