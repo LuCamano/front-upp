@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -13,6 +14,7 @@ import type {
   EmailSchema,
   SendEmailToEstablecimientoPayload,
   FechaClave,
+  StudentMailSchema,
 } from "@/lib/definitions";
 import * as api from "@/lib/api";
 import { format, parseISO, differenceInWeeks } from "date-fns";
@@ -672,6 +674,7 @@ export default function AsignacionPage() {
     setIsUpdatingAndSending(true);
 
     try {
+      // Step 1: Update the database records with the scheduled time
       const updatePromises = createdFichas.map((ficha) => {
         const cupo = allCupos.find((c) => c.id === ficha.cupo_id);
         const nivelId = cupo!.nivel_practica_id;
@@ -690,20 +693,31 @@ export default function AsignacionPage() {
       });
 
       await Promise.all(updatePromises);
-      toast({
-        title: "Fichas actualizadas",
-        description: "Las fechas de envío han sido guardadas correctamente.",
+
+      // Step 2: Group ficha IDs by level to call the email API in batches
+      const batchesByLevel: Record<string, number[]> = {};
+      createdFichas.forEach((ficha) => {
+        const cupo = allCupos.find((c) => c.id === ficha.cupo_id);
+        if (cupo) {
+          const nivelId = cupo.nivel_practica_id.toString();
+          if (!batchesByLevel[nivelId]) batchesByLevel[nivelId] = [];
+          batchesByLevel[nivelId].push(ficha.id);
+        }
       });
 
-      const sendPromises = createdFichas.map(async (ficha) => {
-        const student = allStudents.find((s) => s.id === ficha.estudiante_id);
-        if (!student) return Promise.resolve();
-
-        const emailPayload: EmailSchema = {
+      const sendPromises = Object.entries(batchesByLevel).map(([nivelId, fichaIds]) => {
+        const scheduledTime = scheduledSendTimes[nivelId];
+        const payload: StudentMailSchema = {
           subject: `Detalles de tu práctica - ${selectedEstablecimiento?.nombre || "UCSC"}`,
-          email: [student.email],
+          directivo: {
+            nombre: mainDirectivo?.nombre || "",
+            cargo: mainDirectivo?.cargo || "",
+            email: mainDirectivo?.email || "",
+          },
+          ficha_ids: fichaIds,
+          fecha_envio: scheduledTime ? new Date(scheduledTime).toISOString() : null,
         };
-        return api.sendEmailToStudent(ficha.id, emailPayload);
+        return api.sendEmailToStudent(payload);
       });
 
       await Promise.all(sendPromises);

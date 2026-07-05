@@ -81,6 +81,19 @@ export type EmailSchema = {
   email: string[];
 };
 
+export type DirectivoSchema = {
+  nombre: string;
+  cargo: string;
+  email: string;
+};
+
+export type StudentMailSchema = {
+  subject: string;
+  directivo: DirectivoSchema;
+  ficha_ids: number[];
+  fecha_envio?: string | null;
+};
+
 export type StablishmentBody = {
   directivo?: Directivo | null;
   establecimiento?: Establecimiento | null;
@@ -167,8 +180,8 @@ export const mockNivelesPractica: NivelPractica[] = [
 export const mockCupos: Cupo[] = [
     { id: 1, establecimiento_id: 'e8a4a278-f68e-4a6f-9937-2d6a3b6c7d41', nivel_practica_id: 2 },
     { id: 2, establecimiento_id: 'e8a4a278-f68e-4a6f-9937-2d6a3b6c7d41', nivel_practica_id: 3 },
-    { id: 3, establecimiento_id: 'b2c9e8d1-7f6a-4b8e-9c1d-3e5f7a9b8c2e', nivel_practica_id: 4 },
-    { id: 4, establecimiento_id: 'b2c9e8d1-7f6a-4b8e-9c1d-3e5f7a9b8c2e', nivel_practica_id: 5 },
+    { id: 3, establecimiento_id: 'e8a4a278-f68e-4a6f-9937-2d6a3b6c7d41', nivel_practica_id: 4 },
+    { id: 4, establecimiento_id: 'e8a4a278-f68e-4a6f-9937-2d6a3b6c7d41', nivel_practica_id: 5 },
     { id: 5, establecimiento_id: 'd3e1f2a9-9c8b-4a7d-8e6f-1b3d5c7a9e8f', nivel_practica_id: 7 },
     { id: 6, establecimiento_id: 'a4b8c1d9-8e7f-4b6d-9c5a-2e4f6a8b7d3c', nivel_practica_id: 3 },
 ];

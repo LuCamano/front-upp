@@ -1,6 +1,6 @@
 
 import type { 
-    Carrera, Comuna, Cupo, Directivo, Establecimiento, Estudiante, Ficha, NivelPractica, Tutor, SendEmailToEstablecimientoPayload, EmailSchema, FechaClave 
+    Carrera, Comuna, Cupo, Directivo, Establecimiento, Estudiante, Ficha, NivelPractica, Tutor, SendEmailToEstablecimientoPayload, EmailSchema, FechaClave, StudentMailSchema 
 } from './definitions';
 
 // Ensure you have NEXT_PUBLIC_API_URL in your .env.local file
@@ -125,8 +125,8 @@ export const sendEmailToEstablecimiento = (establecimientoId: string, payload: S
     });
 };
 
-export const sendEmailToStudent = (fichaId: number, payload: EmailSchema): Promise<any> => {
-    return fetchAPI(`/api/v1/email/send-email/student?ficha_id=${fichaId}`, {
+export const sendEmailToStudent = (payload: StudentMailSchema): Promise<any> => {
+    return fetchAPI(`/api/v1/email/send-email/student`, {
         method: 'POST',
         body: JSON.stringify(payload),
     });
